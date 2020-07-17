@@ -234,12 +234,9 @@ function SWEP:ThrowGlizzy( model_file )
         mass = ( 10/(20.245-self:Clip1()) - (1/2) ) + mass
         recoil = self:Clip1() -- relative oomph
         self:TakePrimaryAmmo( self:Clip1() ) -- use rest of magazine
-        self.Weapon:SetNextPrimaryFire( CurTime() + 0.5 )
-        ent:SetColor( Color( 150, 50, 50, 255 ) ) 
-        phys:SetMaterial("Brick")
+        ent:SetColor( Color( 64, 32, 32, 255 ) )
     else
         self:TakePrimaryAmmo(1)
-        phys:SetMaterial("watermelon") -- for squishy impact sound
     end
     
     print("Mass: " .. mass) -- .. is lua string concatenate
@@ -251,6 +248,7 @@ function SWEP:ThrowGlizzy( model_file )
 	phys:ApplyForceCenter( force )
     phys:SetMass( mass ) -- set mass so it will do damage
     phys:SetBuoyancyRatio(7) -- to make glizzies float in water
+    phys:SetMaterial("watermelon") -- for squishy impact sound
     
     -- Visual punch
     self.Owner:ViewPunch( Angle( util.SharedRandom(self:GetClass(),-0.2,-0.1,0) * recoil, util.SharedRandom(self:GetClass(),-0.1,0.1,1) * recoil, 0 ) )
