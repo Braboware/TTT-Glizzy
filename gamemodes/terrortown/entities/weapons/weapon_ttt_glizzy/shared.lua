@@ -10,7 +10,10 @@ local BattleDeny                =   Sound( "weapons/glock/glock_clipout.wav" )
 
 if SERVER then
    AddCSLuaFile( "shared.lua" )
+   resource.AddFile("sound/weapons/glizzy/glizzy.wav")
+   resource.AddFile("sound/weapons/glizzy/superglizzy.wav")
    resource.AddFile("sound/weapons/glizzy/go_viral_able.wav")
+   resource.AddFile("materials/vgui/ttt/icon_glizzy.vmt")
 end
 
 SWEP.HoldType              = "pistol"
@@ -28,7 +31,7 @@ if CLIENT then
    -- Text shown in the equip menu
    SWEP.EquipMenuData = {
       type = "Weapon",
-      desc = "Why not both? \n\nDoes more damage up close. \n\nSecondary fire charges a shot with power relative to\nyour remaining ammo."
+      desc = "Why not both? \n\nDoes more damage up close. \n\nSecondary fire charges a shot with remaining ammo."
    };
 end
 
@@ -37,7 +40,6 @@ SWEP.Base                  = "weapon_tttbase"
 SWEP.AutoSpawnable         = true
 
 SWEP.Kind                  = WEAPON_EQUIP1
-SWEP.WeaponID              = AMMO_GLOCK
 
 SWEP.NoSights              = true 
 
@@ -58,7 +60,7 @@ SWEP.Primary.DefaultClip	    =   20
 SWEP.Primary.ClipMax            =   20
 SWEP.Primary.Automatic		    =   false
 SWEP.Primary.Delay              =   0.10
-SWEP.Primary.Ammo		        =   "ammo_glizzy_max"
+SWEP.Primary.Ammo		        =   "Glizzy"
 SWEP.Primary.Recoil             =   2 -- The amount of recoil
 
 SWEP.Secondary.ClipSize		    =   -1
@@ -88,19 +90,11 @@ local supershot = false
 local supercooldown = 2.4
 local last_super = 0
 
+--
+-- Add hook to Initialize instead of overriding
+--
 local function init()
-    game.AddAmmoType({
-        name = "ammo_glizzy_max",
-        dmgtype = DMG_CRUSH,
-        tracer = TRACER_LINE,
-        plydmg = 0,
-        npcdmg = 0,
-        force = 2000,
-        minsplash = 10,
-        maxsplash = 5,
-        maxcarry = 40
-    })
-	print("Initialization hook called----------------------------------------------------------")
+	print("Initialization hook called")
 end
 hook.Add( "Initialize", "some_unique_name", init )
 
@@ -132,7 +126,7 @@ function SWEP:SecondaryAttack()
     
 end
 
-function SWEP:Think()
+function SWEP:Think() -- aka process() aka loop() aka update()
     if supershot and last_super < CurTime() - supercooldown then
         supershot = false
         self:EmitSound( BattleDeny )
@@ -230,33 +224,31 @@ function SWEP:ThrowGlizzy( model_file )
 	-- of just falling to the ground. You can play with this value here
 	-- to adjust how fast we throw it.
 	--
-	local velocity = self.Owner:GetAimVector()
+	local force = self.Owner:GetAimVector()
+    local velocity = shootimpulse
     local recoil = self.Primary.Recoil
     local mass = 10 -- min mass that still allows water splash at reasonable angles
     
     if supershot then
-        if self:Clip1() == self.Primary.ClipMax then -- full mag has mega velocity
-            velocity = velocity * 1500000
-            mass = 100
-        else
-            velocity = velocity * shootimpulse + velocity * shootimpulse * self:Clip1() * 0.0125
-            mass = mass + mass * self:Clip1() * 0.0125
-        end
+        velocity = ( 35/(20.4-self:Clip1()) - (1/20) ) + velocity -- visualize in desmos
+        mass = ( 10/(20.245-self:Clip1()) - (1/2) ) + mass
+        recoil = self:Clip1() -- relative oomph
         self:TakePrimaryAmmo( self:Clip1() ) -- use rest of magazine
-        recoil = 20 -- more oomph
         self.Weapon:SetNextPrimaryFire( CurTime() + 0.5 )
         ent:SetColor( Color( 150, 50, 50, 255 ) ) 
         phys:SetMaterial("Brick")
     else
-        velocity = velocity * shootimpulse
         self:TakePrimaryAmmo(1)
         phys:SetMaterial("watermelon") -- for squishy impact sound
     end
     
-    
+    print("Mass: " .. mass) -- .. is lua string concatenate
+    print("Velocity: " .. velocity)
+    print("Momentum: " .. mass * velocity)
     
     -- physical stuff
-	phys:ApplyForceCenter( velocity )
+    force = force * velocity
+	phys:ApplyForceCenter( force )
     phys:SetMass( mass ) -- set mass so it will do damage
     phys:SetBuoyancyRatio(7) -- to make glizzies float in water
     
