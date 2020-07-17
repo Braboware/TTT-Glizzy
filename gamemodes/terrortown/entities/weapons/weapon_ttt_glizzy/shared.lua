@@ -207,8 +207,8 @@ function SWEP:ThrowGlizzy( model_file )
     local mass = 10 -- min mass that still allows water splash at reasonable angles
     
     if supershot then
-        velocity = ( 348000/(20.1-self:Clip1()) - (327900/20) )  -- visualize in desmos; self:Clip1() is x
-        mass = ( 10/(20.245-self:Clip1()) - (1/2) ) + mass
+        velocity = ( 10000/(20.0001-self:Clip1())) + 1300 -- visualize in desmos; self:Clip1() is x
+        mass = ( 10/(20.245-self:Clip1()) - (1/2) ) + 10
         recoil = math.pow(self:Clip1(), 1.125) -- relative oomph
         self:TakePrimaryAmmo( self:Clip1() ) -- use rest of magazine
         ent:SetColor( Color( 64, 32, 32, 255 ) )
