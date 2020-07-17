@@ -1,7 +1,8 @@
 -- TODO
+-- [x] customize shootsound and supershootsound
 -- [] add multiple sounds to randomize
 -- [] customize battledeny sound
--- [] customize shootsound and supershootsound
+
 
 local ShootSound                =   Sound( "weapons/glizzy/glizzy.wav" )
 local SuperShootSound           =   Sound( "weapons/glizzy/superglizzy.wav" )
@@ -31,7 +32,7 @@ if CLIENT then
    -- Text shown in the equip menu
    SWEP.EquipMenuData = {
       type = "Weapon",
-      desc = "Why not both? \n\nDoes more damage up close. \n\nSecondary fire charges a shot with remaining ammo."
+      desc = "Why not both? \n\nDoes more damage up close. \nSecondary fire charges a shot with remaining ammo."
    };
 end
 
@@ -49,8 +50,6 @@ SWEP.CanBuy = { ROLE_TRAITOR, ROLE_DETECTIVE }
 --------------------------------------------------------
 
 SWEP.Author                     =   "Yuler"
-SWEP.Purpose                    =   "Why not both?"
-SWEP.Instructions               =   "Primary fire: Glizzy \nSecondary fire: Glizzy battlecry \n"
 
 SWEP.Spawnable                  =   false
 SWEP.AdminOnly                  =   false
@@ -59,7 +58,7 @@ SWEP.Primary.ClipSize           =   20
 SWEP.Primary.DefaultClip	    =   20
 SWEP.Primary.ClipMax            =   20
 SWEP.Primary.Automatic		    =   false
-SWEP.Primary.Delay              =   0.10
+-- SWEP.Primary.Delay              =   0.10
 SWEP.Primary.Ammo		        =   "Glizzy"
 SWEP.Primary.Recoil             =   2 -- The amount of recoil
 
@@ -84,8 +83,6 @@ SWEP.WorldModel                 =   "models/weapons/w_pist_glock18.mdl"
 
 -- SWEP.IronSightsPos              =   Vector( -5.79, -3.9982, 2.8289 )
 
-local shootimpulse = 1825 -- max impulse before super shot instakills even at 2 "bullets" left
-
 local supershot = false
 local supercooldown = 2.4
 local last_super = 0
@@ -103,8 +100,6 @@ hook.Add( "Initialize", "some_unique_name", init )
 --
 function SWEP:PrimaryAttack() 
     if ( !self:CanPrimaryAttack() ) then return end
-    
-    -- self.Weapon:SetNextPrimaryFire( CurTime() + self.Primary.Delay )
     
 	-- Call 'ThrowGlizzy' on self with this model
     self:ThrowGlizzy( "models/food/hotdog.mdl" )
@@ -152,7 +147,6 @@ function SWEP:ThrowGlizzy( model_file )
     end
 	
 
-    
 	--
 	-- If we're the client then this is as much as we want to do.
 	-- We play the sound above on the client due to prediction.
@@ -160,25 +154,19 @@ function SWEP:ThrowGlizzy( model_file )
 	--
 	if ( CLIENT ) then return end  ----------------------------------------------------------------------------
 
-	--
+
 	-- Create a prop_physics entity
-	--
 	local ent = ents.Create( "prop_physics" )
 
-	--
 	-- Always make sure that created entities are actually created!
-	--
 	if ( !IsValid( ent ) ) then return end
 
-	--
 	-- Set the entity's model to the passed in model
-	--
 	ent:SetModel( model_file )
  
-	--
-	-- Set the position to the player's eye position plus 16 units forward.
+	-- Set the position to the player's eye position.
 	-- Set the angles to the player'e eye angles. Then spawn it.
-	--
+	-- Probably a nicer way to do this with raycasting or something
 	ent:SetPos( self.Owner:GetShootPos() - Vector(0,0,14) + (self.Owner:GetAimVector() * 1 ) )
 	ent:SetAngles( self.Owner:EyeAngles() )
     
@@ -186,21 +174,14 @@ function SWEP:ThrowGlizzy( model_file )
     
 	ent:Spawn()
     
-    if supershot then
+    if supershot then -- glizzy confetti
         a = {}
         for i=1, self:Clip1() - 1 do
             a[i] = ents.Create( "prop_physics" )
             if ( !IsValid( a[i] ) ) then return end
 
-            --
-            -- Set the entity's model to the passed in model
-            --
             a[i]:SetModel( model_file )
          
-            --
-            -- Set the position to the player's eye position plus 16 units forward.
-            -- Set the angles to the player'e eye angles. Then spawn it.
-            --
             a[i]:SetPos( self.Owner:GetShootPos() - Vector(0,0,14) + (self.Owner:GetAimVector() * Vector( math.Rand(10,-10), math.Rand(10,-10), 0 ) ) )
             a[i]:SetAngles( self.Owner:EyeAngles() )
             
@@ -211,21 +192,17 @@ function SWEP:ThrowGlizzy( model_file )
         end
     end
 
-	--
 	-- Now get the physics object. Whenever we get a physics object
 	-- we need to test to make sure its valid before using it.
 	-- If it isn't then we'll remove the entity.
-	--
 	local phys = ent:GetPhysicsObject()
 	if ( !IsValid( phys ) ) then ent:Remove() return end
  
-	--
-	-- Now we apply the force - so the chair actually throws instead 
+	-- Now we apply the force - so the glizzy actually throws instead 
 	-- of just falling to the ground. You can play with this value here
 	-- to adjust how fast we throw it.
-	--
 	local force = self.Owner:GetAimVector()
-    local velocity = shootimpulse
+    local velocity = 1825
     local recoil = self.Primary.Recoil
     local mass = 10 -- min mass that still allows water splash at reasonable angles
     
@@ -257,6 +234,5 @@ function SWEP:ThrowGlizzy( model_file )
     local eyeang = self:GetOwner():EyeAngles()
     eyeang.pitch = eyeang.pitch - recoil
     self:GetOwner():SetEyeAngles( eyeang )
-    
- 
+
 end
