@@ -3,8 +3,8 @@
 -- [] customize battledeny sound
 -- [] customize shootsound and supershootsound
 
-local ShootSound                =   Sound( "weapons/glock/glock18-1.wav" )
-local SuperShootSound           =   Sound( "weapons/deagle/deagle-1.wav" )
+local ShootSound                =   Sound( "weapons/glizzy/glizzy.wav" )
+local SuperShootSound           =   Sound( "weapons/glizzy/superglizzy.wav" )
 local BattleCry                 =   Sound( "weapons/glizzy/go_viral_able.wav" )
 local BattleDeny                =   Sound( "weapons/glock/glock_clipout.wav" ) 
 
@@ -17,18 +17,18 @@ SWEP.HoldType              = "pistol"
 
 if CLIENT then
    SWEP.PrintName          =  "Glizzy"
-   SWEP.Slot			   =  1
+   SWEP.Slot			   =  6
 
    SWEP.ViewModelFlip      = false
    SWEP.ViewModelFOV       = 54
 
-   SWEP.Icon               = "vgui/ttt/icon_glock"
+   SWEP.Icon               = "vgui/ttt/icon_glizzy"
    SWEP.IconLetter         = "c"
    
    -- Text shown in the equip menu
    SWEP.EquipMenuData = {
       type = "Weapon",
-      desc = "Why not both? \n\nDoes more damage up close. \n\nSecondary fire charges a shot if you have the ammo."
+      desc = "Why not both? \n\nDoes more damage up close. \n\nSecondary fire charges a shot with power relative to\nyour remaining ammo."
    };
 end
 
@@ -36,7 +36,7 @@ SWEP.Base                  = "weapon_tttbase"
 
 SWEP.AutoSpawnable         = true
 
-SWEP.Kind                  = WEAPON_PISTOL
+SWEP.Kind                  = WEAPON_EQUIP1
 SWEP.WeaponID              = AMMO_GLOCK
 
 SWEP.NoSights              = true 
@@ -55,11 +55,11 @@ SWEP.AdminOnly                  =   false
 
 SWEP.Primary.ClipSize           =   20
 SWEP.Primary.DefaultClip	    =   20
-SWEP.Primary.ClipMax            =   40
-SWEP.Primary.Automatic		    =   true
+SWEP.Primary.ClipMax            =   20
+SWEP.Primary.Automatic		    =   false
 SWEP.Primary.Delay              =   0.10
-SWEP.Primary.Ammo		        =   "Glizzy"
-SWEP.Primary.Recoil             =   2.5 -- The amount of recoil
+SWEP.Primary.Ammo		        =   "ammo_glizzy_max"
+SWEP.Primary.Recoil             =   2 -- The amount of recoil
 
 SWEP.Secondary.ClipSize		    =   -1
 SWEP.Secondary.DefaultClip	    =   -1
@@ -71,7 +71,7 @@ SWEP.AutoSwitchTo		        =   false
 SWEP.AutoSwitchFrom		        =   false
 
 
-SWEP.SlotPos			        =   2
+SWEP.SlotPos			        =   7
 SWEP.DrawAmmo			        =   true
 SWEP.DrawCrosshair		        =   false
 SWEP.CSMuzzleFlashes            =   true
@@ -82,10 +82,27 @@ SWEP.WorldModel                 =   "models/weapons/w_pist_glock18.mdl"
 
 -- SWEP.IronSightsPos              =   Vector( -5.79, -3.9982, 2.8289 )
 
+local shootimpulse = 1825 -- max impulse before super shot instakills even at 2 "bullets" left
 
 local supershot = false
-local supercooldown = 2
+local supercooldown = 2.4
 local last_super = 0
+
+local function init()
+    game.AddAmmoType({
+        name = "ammo_glizzy_max",
+        dmgtype = DMG_CRUSH,
+        tracer = TRACER_LINE,
+        plydmg = 0,
+        npcdmg = 0,
+        force = 2000,
+        minsplash = 10,
+        maxsplash = 5,
+        maxcarry = 40
+    })
+	print("Initialization hook called----------------------------------------------------------")
+end
+hook.Add( "Initialize", "some_unique_name", init )
 
 --
 -- Called when the left mouse button is pressed
@@ -93,7 +110,7 @@ local last_super = 0
 function SWEP:PrimaryAttack() 
     if ( !self:CanPrimaryAttack() ) then return end
     
-    self.Weapon:SetNextPrimaryFire( CurTime() + self.Primary.Delay )
+    -- self.Weapon:SetNextPrimaryFire( CurTime() + self.Primary.Delay )
     
 	-- Call 'ThrowGlizzy' on self with this model
     self:ThrowGlizzy( "models/food/hotdog.mdl" )
@@ -104,7 +121,7 @@ end
 -- Called when the rightmouse button is pressed
 --
 function SWEP:SecondaryAttack()
-    if self:Clip1() >= 10 then
+    if self:Clip1() >= 1 then
         self:EmitSound( BattleCry )
         self.Weapon:SetNextPrimaryFire( CurTime() + 1.4 ) -- duration of battlecry
         supershot = true
@@ -177,7 +194,7 @@ function SWEP:ThrowGlizzy( model_file )
     
     if supershot then
         a = {}
-        for i=1, 9 do
+        for i=1, self:Clip1() - 1 do
             a[i] = ents.Create( "prop_physics" )
             if ( !IsValid( a[i] ) ) then return end
 
@@ -215,22 +232,28 @@ function SWEP:ThrowGlizzy( model_file )
 	--
 	local velocity = self.Owner:GetAimVector()
     local recoil = self.Primary.Recoil
-    local mass
+    local mass = 10 -- min mass that still allows water splash at reasonable angles
     
     if supershot then
-        velocity = velocity * 15000
-        self:TakePrimaryAmmo(10)
-        recoil = 20
-        mass = 50
+        if self:Clip1() == self.Primary.ClipMax then -- full mag has mega velocity
+            velocity = velocity * 1500000
+            mass = 100
+        else
+            velocity = velocity * shootimpulse + velocity * shootimpulse * self:Clip1() * 0.0125
+            mass = mass + mass * self:Clip1() * 0.0125
+        end
+        self:TakePrimaryAmmo( self:Clip1() ) -- use rest of magazine
+        recoil = 20 -- more oomph
         self.Weapon:SetNextPrimaryFire( CurTime() + 0.5 )
         ent:SetColor( Color( 150, 50, 50, 255 ) ) 
         phys:SetMaterial("Brick")
     else
-        velocity = velocity * 1200
+        velocity = velocity * shootimpulse
         self:TakePrimaryAmmo(1)
-        mass = 15
         phys:SetMaterial("watermelon") -- for squishy impact sound
     end
+    
+    
     
     -- physical stuff
 	phys:ApplyForceCenter( velocity )
