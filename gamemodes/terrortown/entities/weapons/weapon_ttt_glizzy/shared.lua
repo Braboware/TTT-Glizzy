@@ -110,6 +110,8 @@ end
 -- Called when the rightmouse button is pressed
 --
 function SWEP:SecondaryAttack()
+    if supershot then return end
+    
     if self:Clip1() >= 1 then
         self:EmitSound( BattleCry )
         self.Weapon:SetNextPrimaryFire( CurTime() + 1.4 ) -- duration of battlecry
